@@ -1,15 +1,15 @@
 package main
 
 import (
-    "fmt"
-    "math/rand"
-    "os"
-    "strconv"
-    "time"
+	"fmt"
+	"math/rand"
+	"os"
+	"strconv"
+	"time"
 )
 
-var wall = '▤'
-var character = '☺'
+var wall = '🟫'
+var character = '🤠'
 
 func generateMaze(width int, height int) [][]rune {
     maze := make([][]rune, height)

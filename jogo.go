@@ -1,10 +1,12 @@
 package main
 
 import (
-    "bufio"
-    "github.com/nsf/termbox-go"
-    "os"
-    "fmt"
+	"bufio"
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/nsf/termbox-go"
 )
 
 // Define os elementos do jogo
@@ -17,17 +19,17 @@ type Elemento struct {
 
 // Personagem controlado pelo jogador
 var personagem = Elemento{
-    simbolo: '☺',
-    cor: termbox.ColorBlack,
+    simbolo: '🤠',
+    cor: termbox.ColorDefault,
     corFundo: termbox.ColorDefault,
     tangivel: true,
 }
 
 // Parede
 var parede = Elemento{
-    simbolo: '▤',
-    cor: termbox.ColorBlack|termbox.AttrBold|termbox.AttrDim,
-    corFundo: termbox.ColorDarkGray,
+    simbolo: '🟫',
+    cor: termbox.ColorDefault,
+    corFundo: termbox.ColorDefault,
     tangivel: true,
 }
 
@@ -41,7 +43,7 @@ var barreira = Elemento{
 
 // Vegetação
 var vegetacao = Elemento{
-    simbolo: '♣',
+    simbolo: '🌳',
     cor: termbox.ColorGreen,
     corFundo: termbox.ColorDefault,
     tangivel: false,
@@ -63,6 +65,22 @@ var neblina = Elemento{
     tangivel: false,
 }
 
+
+var fogo = Elemento{
+    simbolo: '🔥',
+    cor: termbox.ColorRed,
+    corFundo: termbox.ColorDefault,
+    tangivel: true,
+}
+
+var fogoApagado = Elemento{
+    simbolo: '⬛',
+    cor: termbox.ColorRed,
+    corFundo: termbox.ColorDefault,
+    tangivel: false,
+}
+
+
 var mapa [][]Elemento
 var posX, posY int
 var ultimoElementoSobPersonagem = vazio
@@ -71,6 +89,25 @@ var statusMsg string
 var efeitoNeblina = false
 var revelado [][]bool
 var raioVisao int = 3
+
+
+func mudaFogo() {
+    for {
+
+        for y, linha := range mapa {
+            for x, elem := range linha {
+                if elem == fogo {
+                    mapa[y][x] = fogoApagado
+                    } else if elem == fogoApagado {
+                        mapa[y][x] = fogo
+                    }
+                }
+            }
+            desenhaTudo()
+            time.Sleep(2 * time.Second)
+        }
+}
+
 
 func main() {
     err := termbox.Init()
@@ -84,6 +121,8 @@ func main() {
         revelarArea()
     }
     desenhaTudo()
+
+    go mudaFogo()
 
     for {
         switch ev := termbox.PollEvent(); ev.Type {
@@ -122,6 +161,10 @@ func carregarMapa(nomeArquivo string) {
             switch char {
             case parede.simbolo:
                 elementoAtual = parede
+            case fogo.simbolo:
+                elementoAtual = fogo
+            case fogoApagado.simbolo:
+                elementoAtual = fogoApagado
             case barreira.simbolo:
                 elementoAtual = barreira
             case vegetacao.simbolo:
