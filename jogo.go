@@ -19,15 +19,15 @@ type Elemento struct {
 
 // Personagem controlado pelo jogador
 var personagem = Elemento{
-    simbolo: '🤠',
-    cor: termbox.ColorDefault,
+    simbolo: '☺',
+    cor: termbox.ColorYellow,
     corFundo: termbox.ColorDefault,
     tangivel: true,
 }
 
 // Parede
 var parede = Elemento{
-    simbolo: '🟫',
+    simbolo: '▣',
     cor: termbox.ColorDefault,
     corFundo: termbox.ColorDefault,
     tangivel: true,
@@ -43,7 +43,7 @@ var barreira = Elemento{
 
 // Vegetação
 var vegetacao = Elemento{
-    simbolo: '🌳',
+    simbolo: '♣',
     cor: termbox.ColorGreen,
     corFundo: termbox.ColorDefault,
     tangivel: false,
@@ -67,25 +67,43 @@ var neblina = Elemento{
 
 
 var fogo = Elemento{
-    simbolo: '🔥',
+    simbolo: '♨',
     cor: termbox.ColorRed,
     corFundo: termbox.ColorDefault,
     tangivel: true,
 }
 
 var fogoApagado = Elemento{
-    simbolo: '⬛',
-    cor: termbox.ColorRed,
+    simbolo: '⧇',
+    cor: termbox.ColorLightGray,
+    corFundo: termbox.ColorDefault,
+    tangivel: false,
+}
+
+var bastaoAgua = Elemento{
+    simbolo: '☿',
+    cor: termbox.ColorBlue,
+    corFundo: termbox.ColorDefault,
+    tangivel: false,
+}
+
+var agua = Elemento{
+    simbolo: '◯',
+    cor: termbox.ColorBlue,
     corFundo: termbox.ColorDefault,
     tangivel: false,
 }
 
 
+
 var mapa [][]Elemento
 var posX, posY int
+var aguaX, aguaY int
+var temBastaoAgua bool = false
 var ultimoElementoSobPersonagem = vazio
 var statusMsg string
-
+var vidas int = 3
+var ultimaDirecao string
 var efeitoNeblina = false
 var revelado [][]bool
 var raioVisao int = 3
@@ -93,7 +111,6 @@ var raioVisao int = 3
 
 func mudaFogo() {
     for {
-
         for y, linha := range mapa {
             for x, elem := range linha {
                 if elem == fogo {
@@ -110,6 +127,9 @@ func mudaFogo() {
 
 
 func main() {
+
+    
+
     err := termbox.Init()
     if err != nil {
         panic(err)
@@ -121,6 +141,8 @@ func main() {
         revelarArea()
     }
     desenhaTudo()
+
+    pegaBastaoAgua()
 
     go mudaFogo()
 
@@ -165,10 +187,16 @@ func carregarMapa(nomeArquivo string) {
                 elementoAtual = fogo
             case fogoApagado.simbolo:
                 elementoAtual = fogoApagado
+            case agua.simbolo:
+                elementoAtual = agua
+                aguaX, aguaY = x, y
+                elementoAtual = vazio
             case barreira.simbolo:
                 elementoAtual = barreira
             case vegetacao.simbolo:
                 elementoAtual = vegetacao
+            case bastaoAgua.simbolo:
+                elementoAtual = bastaoAgua
             case personagem.simbolo:
                 // Atualiza a posição inicial do personagem
                 posX, posY = x, y
@@ -204,12 +232,15 @@ func desenhaTudo() {
 }
 
 func desenhaBarraDeStatus() {
+    for i, c := range fmt.Sprintf("Vidas: %d", vidas) {
+        termbox.SetCell(i, len(mapa), c, termbox.ColorWhite, termbox.ColorDefault)
+    }
     for i, c := range statusMsg {
-        termbox.SetCell(i, len(mapa)+1, c, termbox.ColorBlack, termbox.ColorDefault)
+        termbox.SetCell(i, len(mapa)+1, c, termbox.ColorWhite, termbox.ColorDefault)
     }
     msg := "Use WASD para mover e E para interagir. ESC para sair."
     for i, c := range msg {
-        termbox.SetCell(i, len(mapa)+3, c, termbox.ColorBlack, termbox.ColorDefault)
+        termbox.SetCell(i, len(mapa)+3, c, termbox.ColorWhite, termbox.ColorDefault)
     }
 }
 
@@ -246,14 +277,27 @@ func mover(comando rune) {
     switch comando {
     case 'w':
         dy = -1
+        ultimaDirecao = "cima"
     case 'a':
         dx = -1
+        ultimaDirecao = "esquerda"
     case 's':
         dy = 1
+        ultimaDirecao = "baixo"
     case 'd':
         dx = 1
+        ultimaDirecao = "direita"
     }
     novaPosX, novaPosY := posX+dx, posY+dy
+    if mapa[novaPosY][novaPosX] == fogo {
+        vidas--
+        statusMsg = "Você foi queimado!"
+        if vidas == 0 {
+            statusMsg = "Você morreu!"
+            time.Sleep(2 * time.Second)
+            os.Exit(0)
+        }
+     }
     if novaPosY >= 0 && novaPosY < len(mapa) && novaPosX >= 0 && novaPosX < len(mapa[novaPosY]) &&
         mapa[novaPosY][novaPosX].tangivel == false {
         mapa[posY][posX] = ultimoElementoSobPersonagem // Restaura o elemento anterior
@@ -263,6 +307,79 @@ func mover(comando rune) {
     }
 }
 
+func pegaBastaoAgua() {
+    // pega a posX e posY do personagem
+    // faz um scan de 3x3 ao redor do personagem
+    // se encontrar um bastão de água, muda o elemento para vazio
+    for y := posY - 1; y <= posY + 1; y++ {
+        for x := posX - 1; x <= posX + 1; x++ {
+            if y >= 0 && y < len(mapa) && x >= 0 && x < len(mapa[y]) &&
+            mapa[y][x] == bastaoAgua {
+                statusMsg = "Pegou cajado de agua"
+                mapa[y][x] = vazio
+                temBastaoAgua = true
+            }
+        }
+    }
+
+}
+
+func dispararAgua() {
+    if !temBastaoAgua || (aguaX != 0 && aguaY != 0) {
+        return // Saia se o jogador não tiver o bastão de água ou se já houver água no tabuleiro
+    }
+
+    
+    dx, dy := 0, 0
+    switch ultimaDirecao {
+    case "cima":
+        dy = -1
+    case "esquerda":
+        dx = -1
+    case "baixo":
+        dy = 1
+    case "direita":
+        dx = 1
+    }
+    
+    aguaX, aguaY = posX, posY
+    mapa[aguaY+dy][aguaX+dx] = agua // Atribui a água à posição inicial
+
+
+    for {
+
+        novaPosX, novaPosY := aguaX+dx, aguaY+dy
+        if(mapa[novaPosY][novaPosX] == fogo && mapa[novaPosY][novaPosX] == fogoApagado) {
+            mapa[novaPosY][novaPosX] = vazio
+            statusMsg = "Apagou o fogo"
+            return
+        }
+        if novaPosY >= 0 && novaPosY < len(mapa) && novaPosX >= 0 && novaPosX < len(mapa[novaPosY]) &&
+            mapa[novaPosY][novaPosX].tangivel == false {
+            // Verifica se a posição anterior está vazia antes de atribuir água à nova posição
+            if mapa[aguaY][aguaX] != personagem {
+                mapa[aguaY][aguaX] = vazio
+            }
+            aguaX, aguaY = novaPosX, novaPosY // Move o tiro
+            mapa[aguaY][aguaX] = agua         // Coloca a água na nova posição
+        } else {
+            // Se a nova posição não for válida, remove a água do mapa e redefine sua posição para 0,0
+            mapa[aguaY][aguaX] = vazio
+            aguaX, aguaY = 0, 0
+            return
+        }
+
+        desenhaTudo()
+        time.Sleep(time.Millisecond * 50) // Ajuste do tempo de espera
+    }
+}
+
+        
+        
+        
 func interagir() {
-    statusMsg = fmt.Sprintf("Interagindo em (%d, %d)", posX, posY)
+    if temBastaoAgua {
+        go dispararAgua()
+    }
+    pegaBastaoAgua()
 }

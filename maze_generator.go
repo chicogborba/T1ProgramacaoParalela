@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-var wall = '🟫'
-var character = '🤠'
+var wall = '▣'
+var character = '☺'
 
 func generateMaze(width int, height int) [][]rune {
     maze := make([][]rune, height)
@@ -65,7 +65,7 @@ func printMaze(maze [][]rune) {
     }
 }
 
-func main() {
+func a() {
     if len(os.Args) < 3 {
         fmt.Println("Usage: go run maze.go <width> <height>")
         return
